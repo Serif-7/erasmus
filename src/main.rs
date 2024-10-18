@@ -1,4 +1,6 @@
-mod tokenizer;
+mod lexer;
+mod parser;
+mod types;
 mod assembler;
 
 fn main() -> std::io::Result<()> {
@@ -11,7 +13,7 @@ fn main() -> std::io::Result<()> {
 
     let line = "label: mov eax, [ebx + 4*ecx + 0x1234]";
     // let line = "label: mov eax, [ebx + 4*ecx + 5]";
-    let tokens = tokenizer::tokenize_line(line);
-    println!("{:?}", tokens);
+    let tokens = lexer::tokenize_line(line);
+    println!("Tokens: {:?}", tokens);
     Ok(())
 }

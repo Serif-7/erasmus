@@ -1,18 +1,19 @@
 use std::str::Chars;
+use crate::types::{Register, Instruction};
 
-pub struct Tokenizer<'a> {
+pub struct Lexer<'a> {
     chars: Chars<'a>,
     current: Option<char>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Token {
+#[derive(Debug, PartialEq, Clone)]
+pub enum Lexeme {
     Label(String),
     Instruction(String),
     Register(String),
     Number(i64),
     String(String),
-    Comma,
+    // Comma,
     OpenBracket,
     CloseBracket,
     Plus,
@@ -21,45 +22,45 @@ pub enum Token {
     Identifier(String),
 }
 
-impl<'a> Tokenizer<'a> {
+impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         let mut chars = input.chars();
         let current = chars.next();
-        return Tokenizer { chars, current }
+        return Lexer { chars, current }
     }
 
     fn next_char(&mut self) {
         self.current = self.chars.next();
     }
 
-    fn tokenize(&mut self) -> Vec<Token> {
+    fn tokenize(&mut self) -> Vec<Lexeme> {
         let mut tokens = Vec::new();
 
         while let Some(c) = self.current {
             match c {
                 ' ' | '\t' => self.next_char(),
                 ',' => {
-                    tokens.push(Token::Comma);
+                    // tokens.push(Lexeme::Comma);
                     self.next_char();
                 }
                 '[' => {
-                    tokens.push(Token::OpenBracket);
+                    tokens.push(Lexeme::OpenBracket);
                     self.next_char();
                 }
                 ']' => {
-                    tokens.push(Token::CloseBracket);
+                    tokens.push(Lexeme::CloseBracket);
                     self.next_char();
                 }
                 '+' => {
-                    tokens.push(Token::Plus);
+                    tokens.push(Lexeme::Plus);
                     self.next_char();
                 }
                 '-' => {
-                    tokens.push(Token::Minus);
+                    tokens.push(Lexeme::Minus);
                     self.next_char();
                 }
                 '*' => {
-                    tokens.push(Token::Mult);
+                    tokens.push(Lexeme::Mult);
                     self.next_char();
                 }
                 '"' => tokens.push(self.tokenize_string()),
@@ -67,15 +68,15 @@ impl<'a> Tokenizer<'a> {
                 '0'..='9' => tokens.push(self.tokenize_number()),
                 'a'..='z' | 'A'..='Z' | '_' | '.' => {
                     let ident = self.tokenize_identifier();
-                    println!("ident: {}", ident);
+                    // println!("ident: {}", ident);
                     if ident.ends_with(':') {
-                        tokens.push(Token::Label(ident.trim_end_matches(':').to_string()));
-                    } else if is_register(&ident) {
-                        tokens.push(Token::Register(ident));
-                    } else if is_instruction(&ident) {
-                        tokens.push(Token::Instruction(ident));
+                        tokens.push(Lexeme::Label(ident.trim_end_matches(':').to_string()));
+                    } else if Register::is_register(&ident) {
+                        tokens.push(Lexeme::Register(ident));
+                    } else if Instruction::is_instruction(&ident) {
+                        tokens.push(Lexeme::Instruction(ident));
                     } else {
-                        tokens.push(Token::Identifier(ident));
+                        tokens.push(Lexeme::Identifier(ident));
                     }
                 }
                 _ => {
@@ -88,7 +89,7 @@ impl<'a> Tokenizer<'a> {
         return tokens
     }
 
-    fn tokenize_string(&mut self) -> Token {
+    fn tokenize_string(&mut self) -> Lexeme {
         self.next_char(); // Skip opening quote
         let mut string = String::new();
         while let Some(c) = self.current {
@@ -99,10 +100,10 @@ impl<'a> Tokenizer<'a> {
             string.push(c);
             self.next_char();
         }
-        return Token::String(string)
+        return Lexeme::String(string)
     }
 
-    fn tokenize_number(&mut self) -> Token {
+    fn tokenize_number(&mut self) -> Lexeme {
         let mut number = String::new();
         let mut is_hex = false;
         
@@ -132,13 +133,13 @@ impl<'a> Tokenizer<'a> {
         };
 
         match parsed_number {
-            Ok(n) => Token::Number(n),
+            Ok(n) => Lexeme::Number(n),
             Err(_) => {
                 eprintln!("Failed to parse number: {}", number);
-                Token::Number(0) // Default to 0 on error, or handle as appropriate
+                Lexeme::Number(0) // Default to 0 on error, or handle as appropriate
             }
         }
-        // return Token::Number(i64::from_str_radix(&number, 10).unwrap_or_else(|_| number.parse().unwrap()));
+        // return Lexer::Number(i64::from_str_radix(&number, 10).unwrap_or_else(|_| number.parse().unwrap()));
     }
 
     fn tokenize_identifier(&mut self) -> String {
@@ -155,19 +156,7 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
-//TODO: Add all registers
-pub fn is_register(s: &str) -> bool {
-    // Add all valid register names for your target architecture
-    return ["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rsp", "rbp", 
-     "eax", "ebx", "ecx", "edx", "esi", "edi", "esp", "ebp",
-     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"].contains(&s.to_lowercase().as_str());
+pub fn tokenize_line(line: &str) -> Vec<Lexeme> {
+    return Lexer::new(line).tokenize()
 }
 
-//TODO: Add all instructions
-pub fn is_instruction(s: &str) -> bool {
-    return ["mov", "add"].contains(&s.to_lowercase().as_str());
-}
-
-pub fn tokenize_line(line: &str) -> Vec<Token> {
-    return Tokenizer::new(line).tokenize()
-}
